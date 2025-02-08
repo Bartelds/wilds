@@ -1,3 +1,5 @@
+# usage: python examples/run_expt.py --dataset civilcomments --algorithm groupDRO --root_dir data --n_groups_per_batch 1
+
 import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import WeightedRandomSampler, SubsetRandomSampler
@@ -61,12 +63,28 @@ def get_train_loader(loader, dataset, batch_size,
             raise ValueError(f'n_groups_per_batch was set to {n_groups_per_batch} but there are only {grouper.n_groups} groups specified.')
 
         group_ids = grouper.metadata_to_group(dataset.metadata_array)
-        batch_sampler = GroupSampler(
+        # batch_sampler = GroupSampler(
+        #     group_ids=group_ids,
+        #     batch_size=batch_size,
+        #     n_groups_per_batch=n_groups_per_batch,
+        #     uniform_over_groups=uniform_over_groups,
+        #     distinct_groups=distinct_groups)
+        batch_sampler = CtcDroSampler(
             group_ids=group_ids,
             batch_size=batch_size,
-            n_groups_per_batch=n_groups_per_batch,
-            uniform_over_groups=uniform_over_groups,
-            distinct_groups=distinct_groups)
+            uniform_over_groups=uniform_over_groups)
+
+        data_loader = DataLoader(dataset,
+              shuffle=None,
+              sampler=None,
+              collate_fn=dataset.collate,
+              batch_sampler=batch_sampler,
+              drop_last=False,
+              **loader_kwargs)
+        
+        for batch in data_loader:
+            print(batch)  # This prints the output of dataset.collate, which is typically a dictionary with the full sample content.
+            break  # Remove break if you want to see more batches.
 
         return DataLoader(dataset,
               shuffle=None,
@@ -143,6 +161,51 @@ class GroupSampler:
 
             # Flatten
             sampled_ids = np.concatenate(sampled_ids)
+            yield sampled_ids
+
+    def __len__(self):
+        print(f"self.num_batches:\n{self.num_batches}")
+        return self.num_batches
+
+class CtcDroSampler:
+    """
+    Constructs batches by first sampling a single group and then sampling
+    data from that group. This sampler is modeled after CTC-DRO.
+    """
+    def __init__(self, group_ids, batch_size, uniform_over_groups):
+        """
+        - group_ids: a tensor containing the group id of each sample.
+        - unique_groups: a tensor containing all distinct group labels present in the dataset.
+        - group_indices: a list of tensors where each tensor contains the indices of the samples 
+                         that belong to the corresponding group in unique_groups.
+        - unique_counts: a tensor containing the number of samples in each unique group.
+        """
+        self.group_ids = group_ids
+        self.unique_groups, self.group_indices, unique_counts = split_into_groups(group_ids)
+        print(self.unique_groups)
+        self.batch_size = batch_size
+        self.dataset_size = len(group_ids)
+        self.num_batches = self.dataset_size // batch_size
+
+        if uniform_over_groups:
+            self.group_prob = None  # Uniform sampling.
+        else:
+            self.group_prob = unique_counts.numpy() / unique_counts.numpy().sum()
+
+    def __iter__(self):
+        for batch_id in range(self.num_batches):
+            # Randomly choose one group.
+            if self.group_prob is None:
+                group_idx = np.random.choice(len(self.unique_groups))
+            else:
+                group_idx = np.random.choice(len(self.unique_groups), p=self.group_prob)
+            # Sample batch_size examples from the chosen group.
+            group_sample_indices = self.group_indices[group_idx]
+            sampled_ids = np.random.choice(
+                group_sample_indices,
+                size=self.batch_size,
+                replace=(len(group_sample_indices) < self.batch_size)
+            )
             yield sampled_ids
 
     def __len__(self):

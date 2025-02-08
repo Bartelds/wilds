@@ -7,5 +7,5 @@ loader_defaults = {
         'num_workers': 8,
         'pin_memory': True,
     },
-    'n_groups_per_batch': 4,
+    'n_groups_per_batch': 1,
 }

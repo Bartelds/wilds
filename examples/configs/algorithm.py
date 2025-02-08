@@ -6,10 +6,11 @@ algorithm_defaults = {
         'randaugment_n': 2,     # When running ERM + data augmentation
     },
     'groupDRO': {
-        'train_loader': 'standard',
+        'train_loader': 'group',
         'uniform_over_groups': True,
         'distinct_groups': True,
-        'eval_loader': 'standard',
+        'n_groups_per_batch': 1,
+        'eval_loader': 'group',
         'group_dro_step_size': 0.01,
     },
     'deepCORAL': {
