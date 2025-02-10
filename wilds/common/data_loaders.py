@@ -1,4 +1,4 @@
-# usage: python examples/run_expt.py --dataset civilcomments --algorithm groupDRO --root_dir data --n_groups_per_batch 1
+# usage: python examples/run_expt.py --dataset civilcomments --algorithm groupDRO --root_dir data
 
 import numpy as np
 from torch.utils.data import DataLoader

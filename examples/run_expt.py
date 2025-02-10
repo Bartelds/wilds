@@ -39,7 +39,7 @@ def main():
 
     # Required arguments
     parser.add_argument('-d', '--dataset', choices=wilds.supported_datasets, required=True)
-    parser.add_argument('--algorithm', required=True, choices=supported.algorithms)
+    parser.add_argument('--algorithm', required=True)
     parser.add_argument('--root_dir', required=True,
                         help='The directory where [dataset]/data can be found (or should be downloaded to, if it does not exist).')
 

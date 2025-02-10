@@ -87,15 +87,16 @@ class CTCDRO(SingleModelAlgorithm):
             self.grouper.n_groups,
             return_dict=False)
         
-        print(group_losses)
+        # print(f"group_losses: {group_losses}")
+        # print(f"results: {results}")
 
         current_group = results['g'][0]
         self.unseen_groups[current_group] = 0
         if current_group not in self.group_losses:
             self.group_losses[current_group] = []
-        self.group_losses[current_group].append(group_losses.data*len(results['g']))
+        self.group_losses[current_group].append(group_losses[current_group]*len(results['g']))
 
-        if ~torch.sum(self.unseen_groups):
+        if not torch.sum(self.unseen_groups).item():
             # update group weights
             update_group_losses = [0 for _ in range(len(self.group_weights))]
             for group in self.group_losses:
@@ -104,8 +105,9 @@ class CTCDRO(SingleModelAlgorithm):
             update_group_losses = torch.stack(update_group_losses)
             self.group_weights = self.group_weights * torch.exp((self.group_weights_step_size*update_group_losses)/(self.group_weights + self.smoothing_hyperparameter))
             self.group_weights = (self.group_weights/(self.group_weights.sum()))
-            # save updated group weights
-            results['group_weight'] = self.group_weights
+            self.group_weights = self.group_weights.detach()
+        # save updated group weights
+        results['group_weight'] = self.group_weights
 
-            # update model
-            super()._update(results, should_step=should_step)
+        # update model
+        super()._update(results, should_step=should_step)

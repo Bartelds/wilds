@@ -13,6 +13,14 @@ algorithm_defaults = {
         'eval_loader': 'group',
         'group_dro_step_size': 0.01,
     },
+        'ctcDRO': {
+        'train_loader': 'group',
+        'uniform_over_groups': True,
+        'distinct_groups': True,
+        'smoothing_hyperparameter': 0.1,
+        'eval_loader': 'group',
+        'group_dro_step_size': 0.01,
+    },
     'deepCORAL': {
         'train_loader': 'group',
         'uniform_over_groups': True,
