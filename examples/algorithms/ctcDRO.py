@@ -4,15 +4,18 @@ from models.initializer import initialize_model
 
 class CTCDRO(SingleModelAlgorithm):
     """
-    Group distributionally robust optimization.
+    CTC-DRO.
 
     Original paper:
-        @inproceedings{sagawa2019distributionally,
-          title={Distributionally robust neural networks for group shifts: On the importance of regularization for worst-case generalization},
-          author={Sagawa, Shiori and Koh, Pang Wei and Hashimoto, Tatsunori B and Liang, Percy},
-          booktitle={International Conference on Learning Representations},
-          year={2019}
-        }    
+    @misc{bartelds2025ctcdro,
+        title={CTC-DRO: Robust Optimization for Reducing Language Disparities in Speech Recognition}, 
+        author={Martijn Bartelds and Ananjan Nandi and Moussa Koulako Bala Doumbouya and Dan Jurafsky and Tatsunori Hashimoto and Karen Livescu},
+        year={2025},
+        eprint={2502.01777},
+        archivePrefix={arXiv},
+        primaryClass={cs.LG},
+        url={https://arxiv.org/abs/2502.01777}, 
+    } 
     """
     def __init__(self, config, d_out, grouper, loss, metric, n_train_steps, is_group_in_train):
         # check config
@@ -50,7 +53,7 @@ class CTCDRO(SingleModelAlgorithm):
     def objective(self, results):
         """
         Takes an output of SingleModelAlgorithm.process_batch() and computes the
-        optimized objective. For group DRO, the objective is the weighted average
+        optimized objective. For CTC-DRO and group DRO, the objective is the weighted average
         of losses, where groups have weights groupDRO.group_weights.
         Args:
             - results (dictionary): output of SingleModelAlgorithm.process_batch()
@@ -63,7 +66,7 @@ class CTCDRO(SingleModelAlgorithm):
             results['g'],
             self.grouper.n_groups,
             return_dict=False)
-        return group_losses @ self.group_weights
+        return (group_losses @ self.group_weights) * self.grouper.n_groups
 
     def _update(self, results, should_step=True):
         """
@@ -80,21 +83,18 @@ class CTCDRO(SingleModelAlgorithm):
                 - objective (float)
         """
         # compute group losses
-        group_losses, _, _ = self.loss.compute_group_wise(
+        batch_group_losses, _, _ = self.loss.compute_group_wise(
             results['y_pred'],
             results['y_true'],
             results['g'],
             self.grouper.n_groups,
             return_dict=False)
-        
-        # print(f"group_losses: {group_losses}")
-        # print(f"results: {results}")
 
         current_group = results['g'][0]
         self.unseen_groups[current_group] = 0
         if current_group not in self.group_losses:
             self.group_losses[current_group] = []
-        self.group_losses[current_group].append(group_losses[current_group]*len(results['g']))
+        self.group_losses[current_group].append(batch_group_losses[current_group]*len(results['g']))
 
         if not torch.sum(self.unseen_groups).item():
             # update group weights
