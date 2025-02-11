@@ -42,6 +42,7 @@ class CTCDRO(SingleModelAlgorithm):
         self.group_weights = self.group_weights/self.group_weights.sum()
         self.group_weights = self.group_weights.to(self.device)
         self.unseen_groups = torch.zeros(grouper.n_groups)
+        self.is_group_in_train = is_group_in_train
         self.unseen_groups[is_group_in_train] = 1
         self.group_losses = {}
 
@@ -90,30 +91,28 @@ class CTCDRO(SingleModelAlgorithm):
             self.grouper.n_groups,
             return_dict=False)
 
-        current_group = results['g'][0]
-        self.unseen_groups[current_group] = 0
+        current_group = int(results['g'][0])
+        # self.unseen_groups[current_group] = 0
         if current_group not in self.group_losses:
             self.group_losses[current_group] = []
         self.group_losses[current_group].append(batch_group_losses[current_group]*len(results['g']))
 
-        if not torch.sum(self.unseen_groups).item():
+        # if not torch.sum(self.unseen_groups).item():
+        if all(len(self.group_losses.get(i, [])) > 0 for i in range(len(self.group_weights)) if self.is_group_in_train[i]):
             # update group weights
             update_group_losses = [torch.tensor(0.0, device=self.device) for _ in range(len(self.group_weights))]
             for group in self.group_losses:
-                update_group_losses[group.item()] = sum(self.group_losses[group])/len(self.group_losses[group])
-            
+                update_group_losses[group] = sum(self.group_losses[group])/len(self.group_losses[group])
+
             update_group_losses = torch.stack(update_group_losses)
             self.group_weights = self.group_weights * torch.exp((self.group_weights_step_size*update_group_losses)/(self.group_weights + self.smoothing_hyperparameter))
             self.group_weights = (self.group_weights/(self.group_weights.sum()))
             self.group_weights = self.group_weights.detach()
-            
+
             # reset group losses
             for group in self.group_losses:
                 self.group_losses[group] = []
-            
-            for group in range(len(self.unseen_groups)):
-                self.unseen_groups[group] = 1
-                
+
         # save updated group weights
         results['group_weight'] = self.group_weights
 
