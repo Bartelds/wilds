@@ -100,7 +100,7 @@ def main():
     # Algorithm
     parser.add_argument('--groupby_fields', nargs='+')
     parser.add_argument('--group_dro_step_size', type=float)
-    parser.add_argument('--smoothing_hyperparameter', type=float, default=0.0)
+    parser.add_argument('--smoothing_hyperparameter', type=float, default=0.1)
     parser.add_argument('--coral_penalty_weight', type=float)
     parser.add_argument('--dann_penalty_weight', type=float)
     parser.add_argument('--dann_classifier_lr', type=float)

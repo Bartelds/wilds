@@ -98,14 +98,22 @@ class CTCDRO(SingleModelAlgorithm):
 
         if not torch.sum(self.unseen_groups).item():
             # update group weights
-            update_group_losses = [0 for _ in range(len(self.group_weights))]
+            update_group_losses = [torch.tensor(0.0, device=self.device) for _ in range(len(self.group_weights))]
             for group in self.group_losses:
-                update_group_losses[group] = sum(self.group_losses[group])/len(self.group_losses[group])
+                update_group_losses[group.item()] = sum(self.group_losses[group])/len(self.group_losses[group])
             
             update_group_losses = torch.stack(update_group_losses)
             self.group_weights = self.group_weights * torch.exp((self.group_weights_step_size*update_group_losses)/(self.group_weights + self.smoothing_hyperparameter))
             self.group_weights = (self.group_weights/(self.group_weights.sum()))
             self.group_weights = self.group_weights.detach()
+            
+            # reset group losses
+            for group in self.group_losses:
+                self.group_losses[group] = []
+            
+            for group in range(len(self.unseen_groups)):
+                self.unseen_groups[group] = 1
+                
         # save updated group weights
         results['group_weight'] = self.group_weights
 
