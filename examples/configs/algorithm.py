@@ -13,7 +13,7 @@ algorithm_defaults = {
         'eval_loader': 'group',
         'group_dro_step_size': 0.01,
     },
-        'ctcDRO': {
+    'ctcDRO': {
         'train_loader': 'group',
         'uniform_over_groups': True,
         'distinct_groups': True,

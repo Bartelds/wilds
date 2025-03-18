@@ -1,3 +1,4 @@
+import csv
 import os
 import torch
 import pandas as pd
@@ -71,6 +72,13 @@ class CivilCommentsDataset(WILDSDataset):
         self._metadata_df = pd.read_csv(
             os.path.join(self._data_dir, 'all_data_with_identities.csv'),
             index_col=0)
+        
+        print(f"length self._metadata_df before filtering: {len(self._metadata_df)}")
+        
+        # Remove CSV row index 235182 and 245642 which have no comment_text and could cause issues with the CTC-DRO sampler
+        self._metadata_df = self._metadata_df[self._metadata_df['comment_text'].notna()].copy()
+
+        print(f"length self._metadata_df after filtering: {len(self._metadata_df)}")
 
         # Get the y values
         self._y_array = torch.LongTensor(self._metadata_df['toxicity'].values >= 0.5)
